@@ -23,6 +23,7 @@ results, and optional native Codex relay notifications.
 ## 功能
 
 - 动态创建网页会话，使用稳定的 `agentId`，不依赖标签页位置。
+- 创建代理时可为新对话指定 `model` 和 `reasoning_effort`，不指定则使用账号默认值。
 - 默认最多 3 个活动网页代理；不同代理可以并行，同一代理一次一个任务。
 - 提供发送、原文结果、事件等待、取消、关闭和恢复操作。
 - 初始角色说明只随第一条消息发送；后续复用网页会话上下文。
@@ -62,7 +63,21 @@ Webpage completion
 
 核心网页路径不需要 OpenAI API Key。不同对话使用同一个浏览器账号，
 不提供独立账号额度或账号级记忆隔离。当前主要支持文本任务，
-不自动上传文件、切换模型或处理验证码。
+不自动上传文件、在已有对话中切换模型或处理验证码。
+
+创建代理时可以传入 ChatGPT 模型 slug 和思考强度。例如：
+
+```json
+{
+  "name": "反例分析",
+  "model": "gpt-5",
+  "reasoning_effort": "high",
+  "requestKey": "create-counterexample-agent"
+}
+```
+
+这两个选项只用于打开新的网页对话；未知或不可用的模型可能由 ChatGPT
+回退到账号默认值。本桥接会保留请求值，但不会把网页选择器的最终状态伪装成已确认。
 
 ## 安装
 
