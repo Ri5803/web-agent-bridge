@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Web Agent Bridge</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <main>
+    <header><h1>Web Agent Bridge</h1><output id="status" role="status" aria-live="polite">未连接</output></header>
+    <form id="settings">
+      <label for="url">本地服务地址</label>
+      <input id="url" type="url" value="ws://127.0.0.1:19347/browser" required autocomplete="off">
+      <label for="token">浏览器连接令牌</label>
+      <input id="token" type="password" required autocomplete="off">
+      <label class="toggle"><input id="enabled" type="checkbox">启用连接</label>
+      <div class="actions">
+        <button type="submit">保存并连接</button>
+        <button id="refresh" type="button">刷新状态</button>
+      </div>
+    </form>
+    <dl><dt>托管会话</dt><dd id="agents">0</dd><dt>待确认回传</dt><dd id="reports">0</dd></dl>
+  </main>
+  <script src="options.js" type="module"></script>
+</body>
+</html>
