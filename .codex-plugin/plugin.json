@@ -1,0 +1,19 @@
+{
+  "name": "web-agent-bridge",
+  "version": "0.1.0",
+  "description": "Local ChatGPT webpage agents with task IDs, event waits and native relay notifications.",
+  "author": {
+    "name": "Ri5803"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Web Agent Bridge",
+    "shortDescription": "Manage external ChatGPT conversation agents.",
+    "longDescription": "Manage separate ChatGPT webpage conversations through a local broker. Native relay subagents can return completion notifications while the parent works. Direct App Server delivery is optional and requires explicit configuration.",
+    "developerName": "Ri5803",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Write"],
+    "defaultPrompt": ["Create two web agents for independent analysis."]
+  },
+  "mcpServers": "./.mcp.json"
+}
