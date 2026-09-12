@@ -4,6 +4,8 @@ import { readFileSync, writeFileSync, renameSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
 export const terminal = new Set(["completed", "failed", "cancelled", "timed_out", "needs_attention"]);
+const MODEL_RE = /^[A-Za-z0-9._-]{1,80}$/;
+const REASONING_EFFORTS = new Set(["pro", "none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"]);
 const copy = value => structuredClone(value);
 const now = () => new Date().toISOString();
 
@@ -14,6 +16,20 @@ export class BridgeError extends Error {
 function text(value, name, max = 100000) {
   if (typeof value !== "string" || !value.trim() || value.length > max)
     throw new BridgeError(`${name} must be a nonempty string, at most ${max} characters.`);
+  return value;
+}
+
+function model(value) {
+  if (value == null || value === "") return null;
+  if (typeof value !== "string" || !MODEL_RE.test(value))
+    throw new BridgeError("model must be a valid ChatGPT model slug.");
+  return value;
+}
+
+function reasoningEffort(value) {
+  if (value == null || value === "") return null;
+  if (typeof value !== "string" || !REASONING_EFFORTS.has(value))
+    throw new BridgeError("reasoning_effort must be one of pro, none, minimal, low, medium, high, xhigh, max, ultra.");
   return value;
 }
 
@@ -66,17 +82,21 @@ export class Store extends EventEmitter {
     return existing ? copy(this.state.jobs[existing.jobId]) : null;
   }
 
-  create({ name, instructions = "", requestKey }) {
+  create({ name, instructions = "", model: requestedModel = null,
+    reasoning_effort: requestedReasoning = null, requestKey }) {
     text(name, "name", 120);
     if (typeof instructions !== "string" || instructions.length > 50000)
       throw new BridgeError("Invalid instructions.");
-    const signature = JSON.stringify(["create", name, instructions]);
+    const selectedModel = model(requestedModel);
+    const selectedReasoning = reasoningEffort(requestedReasoning);
+    const signature = JSON.stringify(["create", name, instructions, selectedModel, selectedReasoning]);
     const existing = this.existing(requestKey, signature);
     if (existing) return { agent: copy(this.agent(existing.agentId)), job: existing };
     if (Object.values(this.state.agents).filter(a => a.status !== "closed").length >= this.config.maxAgents)
       throw new BridgeError("Active agent limit reached. Close an idle agent first.", 409);
     const agent = {
       id: randomUUID(), name, instructions, status: "creating",
+      model: selectedModel, reasoningEffort: selectedReasoning,
       conversationUrl: null, createdAt: now(), initialized: false
     };
     this.state.agents[agent.id] = agent;
@@ -161,6 +181,7 @@ export class Store extends EventEmitter {
     return {
       type: "command", jobId: job.id, lease: job.lease, agentId: agent.id,
       kind: job.kind, conversationUrl: agent.conversationUrl,
+      model: agent.model, reasoningEffort: agent.reasoningEffort,
       prompt: job.kind === "send"
         ? (!agent.initialized && agent.instructions
           ? `${agent.instructions}\n\n${job.text}` : job.text)
