@@ -1,10 +1,20 @@
-# Web Agent Bridge
+# 把网页 GPT 变成你的子代理
+
+**Web Agent Bridge：让 Codex 分派任务，让多个网页 GPT 并行完成。**
+
+一个研究方案，一个寻找反例，一个检查遗漏。
+主代理继续推进，你不用在多个聊天窗口之间来回复制粘贴。
+
+Web Agent Bridge 通过本地 MCP 服务和浏览器扩展，把独立的 ChatGPT 网页对话
+接入 Codex 工作流：自动创建新对话、并行分派任务、保留上下文续聊。
+网页任务完成后，通过原生中转把原文结果回传给正在工作的主代理，
+不必反复打开网页查看进度。
+
+**MIT 开源，本地部署，核心网页链路无需 API Key。**
+需要保持浏览器在线并登录 ChatGPT，仍受账号额度和网页兼容性限制。
 
 A local MCP bridge for parallel ChatGPT webpage conversations, event-based
 results, and optional native Codex relay notifications.
-
-把独立的 ChatGPT 网页对话接入 Codex 工作流：创建代理、并行发任务、
-在原对话续聊，并在网页完成后取得原文结果。
 
 这是社区开发的实验性项目，不是 OpenAI 官方产品，也不是 ChatGPT 网页 API。
 请遵守所用服务的条款、账号权限及使用限额。项目不保证特定模型、
