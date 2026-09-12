@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Web Agent Bridge",
+  "version": "0.1.1",
+  "description": "Connect bridge-owned ChatGPT conversations to a local task broker.",
+  "minimum_chrome_version": "116",
+  "permissions": ["storage", "alarms"],
+  "host_permissions": ["https://chatgpt.com/*", "http://127.0.0.1/*"],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "options_page": "options.html",
+  "action": { "default_title": "Web Agent Bridge" },
+  "content_scripts": [{
+    "matches": ["https://chatgpt.com/*"],
+    "js": ["dom.js", "content.js"],
+    "run_at": "document_idle"
+  }],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; connect-src ws://127.0.0.1:*"
+  }
+}
