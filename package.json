@@ -1,0 +1,21 @@
+{
+  "name": "web-agent-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node src/server.mjs",
+    "mcp": "node src/mcp.mjs",
+    "test": "node --test test/*.test.mjs",
+    "check": "node scripts/check.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "ws": "8.21.3"
+  },
+  "devDependencies": {
+    "jsdom": "30.0.1"
+  }
+}

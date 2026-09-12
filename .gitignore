@@ -1,0 +1,17 @@
+node_modules/
+.runtime/
+.mcp.json
+.env
+.env.*
+!.env.example
+*.log
+*.zip
+coverage/
+work/
+outputs/
+private/
+config.local.json
+state.json
+LIVE-VERIFICATION*
+.DS_Store
+Thumbs.db
