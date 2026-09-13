@@ -121,6 +121,19 @@ Windows 用户也可使用 `scripts/setup.ps1 -DataDir <private-directory>`。
 本地服务可由首次 MCP 调用按需启动；也可以在设置
 `WEB_AGENT_DATA_DIR` 后运行 `node src/cli.mjs start`。
 
+桌面操控默认关闭。Windows 用户确认需要后，可以在配置时显式开启：
+
+```sh
+node scripts/configure.mjs --data-dir ../web-agent-private --enable-desktop
+```
+
+开启后，MCP 客户端会获得可选的 Windows Desktop 工具。它们能查看窗口、截图、
+启动应用、点击、滚动、输入文字和发送按键；输入操作会直接作用于当前电脑，
+请只在信任的主代理和本机环境中启用。当前版本使用 Windows 原生桌面接口，
+暂不提供 macOS/Linux 实现。网页 GPT 子代理不会凭空获得这些权限；如果希望网页端
+模型直接调用桌面工具，还需要把 Desktop MCP 端点通过受保护的 MCP Tunnel 接入
+ChatGPT Developer mode。
+
 ## 工具
 
 | 工具 | 用途 |
@@ -133,6 +146,18 @@ Windows 用户也可使用 `scripts/setup.ps1 -DataDir <private-directory>`。
 | `web_agent_cancel` | 请求停止任务 |
 | `web_agent_close` | 关闭托管标签页，不删除云端历史 |
 | `web_agent_reopen` | 恢复保存的会话，不自动重发旧提示词 |
+| `desktop_list_windows` | 列出可见桌面窗口 |
+| `desktop_list_apps` | 列出桌面应用及其窗口 |
+| `desktop_observe` | 截取指定窗口并返回图片 |
+| `desktop_launch_app` | 启动应用，不带命令参数 |
+| `desktop_focus` | 激活指定窗口 |
+| `desktop_click` | 点击窗口内坐标 |
+| `desktop_scroll` | 在窗口内滚动 |
+| `desktop_type` | 输入文字 |
+| `desktop_keypress` | 发送按键或组合键 |
+
+桌面工具同样遵循“先观察、再操作”的顺序：先调用
+`desktop_list_windows`，再调用 `desktop_observe`，最后使用截图中的窗口坐标。
 
 创建、发送、关闭和恢复需要唯一 `requestKey`。同一操作的重试复用该键，
 不要对不确定是否提交的提示词换新键重发。准备任务完成后才能发送。

@@ -6,6 +6,16 @@
 在新的 Codex 会话中检查 `web_agent_bridge` 工具是否可用。
 这套工具不会把另一个浏览器的登录状态自动转移过来。
 
+如需让主代理操作 Windows 桌面，在首次配置时显式开启：
+
+```sh
+node scripts/configure.mjs --data-dir ../web-agent-private --enable-desktop
+```
+
+启用后会出现 `desktop_*` 工具，可以列出窗口、截图、启动应用、点击、滚动、
+输入文字和发送按键。桌面工具默认关闭，输入操作会直接影响当前电脑；使用时
+应先观察目标窗口，再执行操作。当前只支持 Windows。
+
 ## 常用指令
 
 创建并行任务：
