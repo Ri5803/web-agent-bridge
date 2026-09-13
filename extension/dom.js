@@ -16,6 +16,20 @@
   const userMessages = () => Array.from(document.querySelectorAll(
     'main [data-message-author-role="user"]'
   )).map(el => ({ id: el.getAttribute("data-message-id"), text: el.innerText ?? el.textContent }));
+  const completeStructuredOutput = value => {
+    const candidate = value.trim()
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/\s*```$/, "");
+    if (!candidate.startsWith("{") && !candidate.startsWith("[")) return true;
+    try {
+      JSON.parse(candidate);
+      return true;
+    } catch {
+      // A streamed JSON object can briefly look finished while its closing
+      // characters have not reached the DOM yet.
+      return false;
+    }
+  };
 
   function snapshot() {
     const composer = document.querySelector("#prompt-textarea") ||
@@ -36,10 +50,11 @@
       user.id && normalize(user.text) === normalize(prompt));
     const fresh = current.assistants.filter(message => message.id &&
       !baseline.assistants.has(message.id) && message.text.trim());
+    const output = fresh.map(message => message.text).join("\n\n");
     return {
       submitted: newUser,
-      done: newUser && !current.stop && fresh.length > 0,
-      output: fresh.map(message => message.text).join("\n\n")
+      done: newUser && !current.stop && fresh.length > 0 && completeStructuredOutput(output),
+      output
     };
   }
 
