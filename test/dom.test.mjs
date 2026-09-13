@@ -40,6 +40,20 @@ test("a visible stop button prevents premature completion", t => {
   assert.equal(result.output, "Partial answer");
 });
 
+test("an incomplete JSON reply is not completion", t => {
+  const dom = fixture(t), api = dom.window.WebAgentDOM;
+  dom.window.document.querySelector("#messages").innerHTML =
+    '<div data-message-author-role="user" data-message-id="u">Hello</div>' +
+    '<div data-message-author-role="assistant" data-message-id="a">{"marker":"RI-VIDEO-731</div>';
+  const result = api.completion(empty(), api.snapshot(), "Hello");
+  assert.equal(result.done, false);
+  assert.equal(result.output, '{"marker":"RI-VIDEO-731');
+
+  dom.window.document.querySelector('[data-message-author-role="assistant"]').textContent =
+    '{"marker":"RI-VIDEO-7319","executed":false}';
+  assert.equal(api.completion(empty(), api.snapshot(), "Hello").done, true);
+});
+
 test("content worker observes the new reply and emits its own final report", async t => {
   const dom = fixture(t);
   const { window } = dom;
