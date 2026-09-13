@@ -8,7 +8,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { startServer } from "../src/server.mjs";
 import { config } from "./helpers.mjs";
 
-test("the real MCP process initializes, exposes eight tools, and reads broker status", async t => {
+test("the real MCP process initializes, exposes web and optional desktop tools", async t => {
   const settings = config(t);
   const service = await startServer(settings);
   settings.port = service.server.address().port;
@@ -27,11 +27,15 @@ test("the real MCP process initializes, exposes eight tools, and reads broker st
   assert.match(instructions, /native Codex relay subagent/);
   assert.match(instructions, /untrusted/);
   const listed = await client.listTools();
-  assert.equal(listed.tools.length, 8);
+  assert.equal(listed.tools.length, 18);
   assert.ok(listed.tools.some(tool => tool.name === "web_agent_create"));
+  assert.ok(listed.tools.some(tool => tool.name === "desktop_observe"));
   const response = await client.callTool({ name: "web_agent_status", arguments: {} });
   assert.notEqual(response.isError, true);
   const status = JSON.parse(response.content[0].text);
   assert.equal(status.browserConnected, false);
   assert.equal(status.notification.configured, false);
+  const desktop = await client.callTool({ name: "desktop_list_windows", arguments: {} });
+  assert.equal(desktop.isError, true);
+  assert.match(desktop.content[0].text, /Desktop control is disabled/);
 });
