@@ -18,6 +18,7 @@ export function loadConfig(dir = runtimeDir()) {
       maxAgents: 3,
       maxParallel: 3,
       jobTimeoutMs: 600000,
+      desktop: { enabled: false },
       codex: null
     }, null, 2), { mode: 0o600, flag: "wx" });
   }
@@ -30,6 +31,9 @@ export function loadConfig(dir = runtimeDir()) {
       config.maxParallel > config.maxAgents) throw new Error("Invalid maxParallel.");
   if (!Number.isInteger(config.jobTimeoutMs) || config.jobTimeoutMs < 1000 ||
       config.jobTimeoutMs > 3600000) throw new Error("Invalid jobTimeoutMs.");
+  if (config.desktop != null && typeof config.desktop !== "object")
+    throw new Error("Invalid desktop settings.");
+  const desktop = { enabled: config.desktop?.enabled === true };
   for (const key of ["controlToken", "browserToken"]) {
     if (typeof config[key] !== "string" || config[key].length < 32)
       throw new Error(`Invalid ${key}.`);
@@ -41,7 +45,7 @@ export function loadConfig(dir = runtimeDir()) {
     if (typeof config.codex.threadId !== "string" || !config.codex.threadId)
       throw new Error("An explicit Codex target threadId is required.");
   }
-  return { ...config, dir };
+  return { ...config, desktop, dir };
 }
 
 export function safeEqual(a, b) {
