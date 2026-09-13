@@ -1,0 +1,7 @@
+interface:
+  display_name: "Web Agent Bridge"
+  short_description: "Create and coordinate webpage GPT subagents"
+  default_prompt: "Use $web-agent-bridge to create webpage GPT subagents and coordinate their results safely."
+
+policy:
+  allow_implicit_invocation: true
