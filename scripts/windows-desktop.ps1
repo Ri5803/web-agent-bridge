@@ -1,6 +1,13 @@
 $ErrorActionPreference = "Stop"
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
+$uiaAvailable = $true
+try {
+  Add-Type -AssemblyName UIAutomationClient
+  Add-Type -AssemblyName UIAutomationTypes
+} catch {
+  $uiaAvailable = $false
+}
 
 if (-not ("WebAgentBridge.Native" -as [type])) {
   $references = @(
@@ -24,9 +31,10 @@ namespace WebAgentBridge {
     [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
     [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
     [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
     [DllImport("user32.dll")] public static extern void mouse_event(uint flags, uint dx, uint dy, int data, UIntPtr extra);
-    [DllImport("user32.dll")] public static extern uint SendInput(uint count, INPUT[] inputs, int size);
+    [DllImport("user32.dll", SetLastError = true)] public static extern uint SendInput(uint count, INPUT[] inputs, int size);
     [DllImport("user32.dll")] public static extern short GetAsyncKeyState(int key);
     public const uint MOUSE_LEFT_DOWN = 0x0002, MOUSE_LEFT_UP = 0x0004;
     public const uint MOUSE_RIGHT_DOWN = 0x0008, MOUSE_RIGHT_UP = 0x0010;
@@ -35,17 +43,29 @@ namespace WebAgentBridge {
     public const uint INPUT_KEYBOARD = 1, KEYEVENTF_UNICODE = 0x0004, KEYEVENTF_KEYUP = 0x0002;
     [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
     [StructLayout(LayoutKind.Sequential)] public struct INPUT { public uint type; public InputUnion union; }
-    [StructLayout(LayoutKind.Explicit)] public struct InputUnion { [FieldOffset(0)] public KEYBDINPUT keyboard; }
+    [StructLayout(LayoutKind.Explicit)] public struct InputUnion {
+      // INPUT's union is sized by MOUSEINPUT on Windows. Omitting it makes
+      // sizeof(INPUT) too small on x64 and causes SendInput to return zero.
+      [FieldOffset(0)] public MOUSEINPUT mouse;
+      [FieldOffset(0)] public KEYBDINPUT keyboard;
+    }
+    [StructLayout(LayoutKind.Sequential)] public struct MOUSEINPUT {
+      public int dx, dy; public uint mouseData, dwFlags, time; public UIntPtr dwExtraInfo;
+    }
     [StructLayout(LayoutKind.Sequential)] public struct KEYBDINPUT {
       public ushort wVk, wScan; public uint dwFlags, time; public UIntPtr dwExtraInfo;
     }
-    public static void UnicodeText(string text) {
+    public static uint UnicodeText(string text) {
+      uint sent = 0;
       foreach (char character in text.ToCharArray()) {
         var code = (int)character;
         var inputs = new List<INPUT>();
         inputs.Add(Key(code, false)); inputs.Add(Key(code, true));
-        SendInput((uint)inputs.Count, inputs.ToArray(), Marshal.SizeOf(typeof(INPUT)));
+        var result = SendInput((uint)inputs.Count, inputs.ToArray(), Marshal.SizeOf(typeof(INPUT)));
+        sent += result;
+        if (result != inputs.Count) return sent;
       }
+      return sent;
     }
     private static INPUT Key(int scan, bool up) {
       return new INPUT { type = INPUT_KEYBOARD, union = new InputUnion {
@@ -135,6 +155,13 @@ function Get-ScreenshotBase64($record) {
 function Focus-Window($request) {
   $target = Find-Window $request
   if (-not [WebAgentBridge.Native]::SetForegroundWindow($target.handle)) { throw "Could not activate the requested window." }
+  $deadline = [DateTime]::UtcNow.AddMilliseconds(750)
+  while ([WebAgentBridge.Native]::GetForegroundWindow() -ne $target.handle -and [DateTime]::UtcNow -lt $deadline) {
+    Start-Sleep -Milliseconds 25
+  }
+  if ([WebAgentBridge.Native]::GetForegroundWindow() -ne $target.handle) {
+    throw "The requested window did not become the foreground window."
+  }
   return $target.record
 }
 
@@ -165,11 +192,68 @@ function Invoke-Scroll($request) {
   return $target.record
 }
 
+function Get-EditableText([IntPtr]$handle) {
+  if (-not $uiaAvailable) { return @{ supported = $false; text = "" } }
+  try {
+    $root = [System.Windows.Automation.AutomationElement]::FromHandle($handle)
+    $elements = $root.FindAll(
+      [System.Windows.Automation.TreeScope]::Descendants,
+      [System.Windows.Automation.Condition]::TrueCondition
+    )
+    $texts = @()
+    for ($i = 0; $i -lt $elements.Count; $i++) {
+      $element = $elements.Item($i)
+      try {
+        $value = $element.GetCurrentPattern(
+          [System.Windows.Automation.ValuePattern]::Pattern
+        ).Current.Value
+        if ($null -ne $value) { $texts += [string]$value }
+        continue
+      } catch {}
+      try {
+        $range = $element.GetCurrentPattern(
+          [System.Windows.Automation.TextPattern]::Pattern
+        ).DocumentRange
+        $value = $range.GetText(-1)
+        if ($null -ne $value) { $texts += [string]$value }
+      } catch {}
+    }
+    return @{
+      supported = $texts.Count -gt 0
+      text = ($texts -join "`n")
+    }
+  } catch {
+    return @{ supported = $false; text = "" }
+  }
+}
+
 function Invoke-Type($request) {
   $target = Find-Window $request
-  [void][WebAgentBridge.Native]::SetForegroundWindow($target.handle)
-  [WebAgentBridge.Native]::UnicodeText([string]$request.text)
-  return $target.record
+  if (-not [WebAgentBridge.Native]::SetForegroundWindow($target.handle)) {
+    throw "Could not activate the requested window."
+  }
+  $deadline = [DateTime]::UtcNow.AddMilliseconds(750)
+  while ([WebAgentBridge.Native]::GetForegroundWindow() -ne $target.handle -and [DateTime]::UtcNow -lt $deadline) {
+    Start-Sleep -Milliseconds 25
+  }
+  if ([WebAgentBridge.Native]::GetForegroundWindow() -ne $target.handle) {
+    throw "The requested window did not become the foreground window."
+  }
+  Start-Sleep -Milliseconds 75
+  $expected = [string]$request.text
+  $sent = [WebAgentBridge.Native]::UnicodeText($expected)
+  if ($sent -ne ($expected.Length * 2)) {
+    throw "Windows accepted only $sent of $($expected.Length * 2) keyboard events."
+  }
+  Start-Sleep -Milliseconds 100
+  $verification = Get-EditableText $target.handle
+  if (-not $verification.supported) {
+    throw "Input was sent, but the target control does not expose readable text for verification."
+  }
+  if (-not $verification.text.Contains($expected)) {
+    throw "Input was sent, but the target control did not contain the requested text."
+  }
+  return @{ window = $target.record; sent = $sent; verified = $true }
 }
 
 function Convert-Key([string]$key) {
